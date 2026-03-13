@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi AQI Forecast Map</title>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1779/1779940.png">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css?v=2">
+
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <style>
+        .menu-btn {
+    position: fixed;
+    top: 20px;
+    left: 60px;
+
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+
+    z-index: 10000;
+}
+
+.menu-btn div {
+    height: 4px;
+    width: 100%;
+    background-color: rgb(164, 173, 173);
+    border-radius: 5px;
+}
+
+  #option{
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 240px;
+            height: 100vh;
+            background: linear-gradient(180deg,#2f3e46,#354f52);
+            color: white;
+            padding: 25px 20px;
+            border-radius: 0 15px 15px 0;
+            box-shadow: 5px 0px 20px rgba(0,0,0,0.3);
+            animation: slideMenu 0.3s ease;
+            z-index: 10000;
+        }
+
+        #option button{
+            width: 100%;
+            padding: 10px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #52796f;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #option button:hover{
+            background:#84a98c;
+        }
+
+
+        #reviewpage{
+            display:none;
+            position:fixed;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            background:white;
+            padding:30px;
+            border-radius:10px;
+            box-shadow:0px 5px 20px rgba(0,0,0,0.2);
+            width:300px;
+            z-index:20000;
+        }
+
+        #reviewpage input{
+            width:100%;
+            padding:8px;
+            margin-top:10px;
+            border-radius:5px;
+            border:1px solid #ccc;
+        }
+
+        #reviewpage button{
+            margin-top:15px;
+            padding:8px 15px;
+            background:#2f3e46;
+            color:white;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+        }
+
+        
+
+        #mont{
+            text-align:center;
+            padding:40px;
+            display:none;
+
+            position:fixed;
+            top:0;
+            left:0;
+
+            width:100%;
+            height:100vh;
+
+            background-color:#f1f5f2;
+            z-index:10000;
+
+            overflow:auto;
+        }
+
+        #mont h1{
+        margin-bottom:30px;
+        color:#333;
+        }
+
+        .container{
+        display:flex;
+        justify-content:center;
+        gap:25px;
+        flex-wrap:wrap;
+        }
+
+        .card{
+        width:200px;
+        padding:20px;
+        background:white;
+        border-radius:12px;
+        box-shadow:0 6px 15px rgba(0,0,0,0.15);
+        transition:0.3s;
+        }
+
+        .card:hover{
+        transform:translateY(-8px);
+        box-shadow:0 10px 25px rgba(0,0,0,0.25);
+        }
+
+        .aqi{
+        font-size:20px;
+        font-weight:bold;
+        margin:10px 0;
+        }
+
+        .msg{
+        font-size:14px;
+        }
+
+        /* AQI COLORS */
+
+        .good{
+        border-top:6px solid #2ecc71;
+        }
+
+        .warning{
+        border-top:6px solid #f1c40f;
+        }
+
+        .danger{
+        border-top:6px solid #e74c3c;
+        }
+
+
+       #navig{
+            display: none;
+            position:fixed;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            background:white;
+            padding:30px;
+            border-radius:15px;
+            width:320px;
+            box-shadow:0 10px 25px rgba(0,0,0,0.25);
+            text-align:center;
+        }
+
+        #navig input{
+            width:90%;
+            padding:10px;
+            margin:10px 0;
+            border-radius:8px;
+            border:1px solid #ccc;
+            font-size:14px;
+        }
+
+        #navig button{
+            padding:10px 18px;
+            margin:8px 5px;
+            border:none;
+            border-radius:8px;
+            background:#2f3e46;
+            color:white;
+            cursor:pointer;
+            font-size:14px;
+            transition:0.3s;
+        }
+
+        #navig button:hover{
+            background:#52796f;
+            transform:scale(1.05);
+        }
+
+        #mont button{
+            position:absolute;
+            top:20px;
+            left:20px;
+            padding:8px 14px;
+            border:none;
+            border-radius:6px;
+            background:#2f3e46;
+            color:white;
+            cursor:pointer;
+        }
+
+
+
+    </style>
+</head>
+
+<body>
+
+    <button class="menu-btn" onclick="show()" >
+        <div></div>
+        <div></div>
+        <div></div>
+    </button>
+
+    <div id="option">
+        <button onclick="hid()">✖</button><br>
+        <button id="smartnav" onclick="nav()">Smart Navigation</button><br>
+        <button id="airD" onclick="mon()">AQI Monitoring</button><br>
+        <button id="Rev" onclick="revpg()">Review</button>
+
+    </div>
+
+    
+    <div id="reviewpage">
+        <p>Review The Place</p>
+        <button>Locate me</button>
+        <input type="text" placeholder="Write here"><br>
+        <input type="number" placeholder="Rate">
+        <button onclick="">Submit</button>
+    
+    </div>
+
+    <div id="navig" >
+        <button>Locate Me</button>
+        <input type="text" placeholder="From"><br>
+        <p>To</p>
+        <input type="text" placeholder="Enter Destination">
+        <button>Search</button>
+    </div>
+
+
+    <div id="mont">
+        <button onclick="backToMap()">⬅ Back to Map</button>
+        <h1>AQI Monitoring</h1>
+        <div class="container">
+
+        <div class="card">
+        <h3>Reliance Jamnagar Refinery</h3>
+        <p id="aqi">AQI: 78 </p>
+        <p>Reliance Industries Limited
+JamnagarJamnagar – 361140
+Gujarat, India</p>
+        <p id="msg">Safe emission level</p>
+        </div>
+
+        <div class="card">
+        <h3>Visakhapatnam Steel Plant</h3>
+        <p id="aqi">AQI: 145</p>
+        <p>Visakhapatnam Steel Plant– 530031
+Andhra Pradesh, India</p>
+        <p id="msg">🚨 Pollution above Allotted limit</p>
+        </div>
+
+        <div class="card">
+        <h3>ITC Paperboards Factory</h3>
+        <p id="aqi">AQI: 87</p>
+        <p>Bhadrachalam
+Khammam District – 507111
+Telangana, India</p>
+        <p id="msg">⚠️ Approaching emission limit</p>
+        </div>
+
+        <div class="card">
+        <h3>TATA</h3>
+        <p id="aqi">AQI: 67</p>
+        <p>Tata Steel Plant Area
+Jamshedpur – 831001
+Jharkhand</p>
+        <p id="msg">🚨 Pollution above Allotted limit</p>
+        </div>
+
+    </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="app-container">
+        <!-- Floating Header -->
+        <div class="glass-panel header">
+            <h1>Delhi Air Quality Forecast 🤖</h1>
+            <p>AI-Powered • 72-Hour Prediction • CPCB-Verified</p>
+
+            <div class="search-container">
+                <input type="text" id="search-box" placeholder="Enter Pincode or Area..." />
+                <button id="search-btn">🔍</button>
+            </div>
+
+            <div id="last-updated">Last Updated: Loading...</div>
+        </div>
+
+        <!-- The Map -->
+        <div id="map"></div>
+
+        <!-- Controls -->
+        <button id="locate-btn" class="glass-panel" title="Locate Me">
+            📍
+        </button>
+        
+
+        <!-- Legend -->
+        <div class="glass-panel legend">
+            <div class="legend-item"><span class="dot good"></span> Good (0-50)</div>
+            <div class="legend-item"><span class="dot satisfactory"></span> Satisfactory (51-100)</div>
+            <div class="legend-item"><span class="dot moderate"></span> Moderate (101-200)</div>
+            <div class="legend-item"><span class="dot poor"></span> Poor (201-300)</div>
+            <div class="legend-item"><span class="dot very-poor"></span> Very Poor (301-400)</div>
+            <div class="legend-item"><span class="dot severe"></span> Severe (401+)</div>
+        </div>
+
+        <!-- Health Advisory Panel -->
+        <div id="health-panel" class="glass-panel">
+            <button class="close-panel" id="close-health">×</button>
+            <h2 id="health-title" style="margin:0; font-size:1.1rem;">Health Advice</h2>
+            <div id="health-grid" class="advisor-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loader" style="
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(238, 242, 243, 1);
+        z-index: 99999;
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column;
+        transition: opacity 0.5s ease;
+    ">
+        <div style="font-size: 3rem; margin-bottom: 20px;">🤖</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: #333;">Forecasting...</div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+
+    
+    
+    <script src="script.js"></script>
+
+    <!-- App Logic -->
+
+
+
+
+    <script>
+
+         function show(){
+            document.getElementById('option').style.display='block'; 
+            
+        };
+
+        function hid(){
+            document.getElementById('option').style.display='none';
+            document.getElementById('reviewpage').style.display='none';
+            document.getElementById('navig').style.display='none';
+        };
+
+        function revpg(){
+            document.getElementById('reviewpage').style.display='block';
+            document.getElementById('option').style.display='none';
+            document.getElementById('mont').style.display='none';
+            document.getElementById('navig').style.display='none';
+        };
+
+        function mon(){
+            document.getElementById('mont').style.display='block';
+            document.getElementById('option').style.display='none';
+            document.getElementById('reviewpage').style.display='none';
+            document.getElementById('navig').style.display='none';
+
+        };
+
+        function nav(){
+            window.location.href="smartnavigation.html"
+        };
+
+        function backToMap(){
+            document.getElementById('mont').style.display='none';
+        }
+
+
+    </script>
+    
+
+</body>
+
+</html>
