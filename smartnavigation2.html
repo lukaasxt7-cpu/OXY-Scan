@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi AQI Route Planner - Clear Previous Routes</title>
+    <!-- Leaflet CSS + JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #2b3e4f; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
+        .card {
+            max-width: 1400px; width: 100%; background: #ffffff; border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(145deg, #16394b, #0d2b38); color: white; padding: 24px 32px;
+        }
+        .header h1 { font-weight: 400; font-size: 1.9rem; letter-spacing: -0.5px; }
+        .header h1 span { font-weight: 700; color: #ffd966; }
+        .header p { opacity: 0.8; margin-top: 6px; font-size: 1rem; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .legend { display: flex; gap: 24px; margin-left: auto; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-color { width: 24px; height: 16px; border-radius: 30px; }
+        .green-bg { background: #2e7d32; box-shadow: 0 2px 8px #2e7d3280; }
+        .yellow-bg { background: #f1c40f; box-shadow: 0 2px 8px #f1c40f80; }
+        .red-bg { background: #c0392b; box-shadow: 0 2px 8px #c0392b80; }
+        
+        /* New layout: input bar above map */
+        .input-bar {
+            background: #edf2f7; padding: 22px 32px; border-bottom: 3px solid #c9d8e3;
+        }
+        .input-group {
+            display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: white; padding: 12px 24px; 
+            border-radius: 60px; box-shadow: inset 0 1px 4px #00000010; max-width: 1000px; margin: 0 auto;
+        }
+        .input-field {
+            display: flex; flex-direction: column; flex: 1;
+        }
+        .input-field label { font-size: 0.8rem; color: #1e4a6b; font-weight: 600; margin-bottom: 4px; }
+        .input-field input {
+            border: 1px solid #cbd5e1; border-radius: 30px; padding: 10px 18px; font-size: 0.95rem;
+            background: #f8fafc; width: 100%; outline: none; transition: 0.2s;
+        }
+        .input-field input:focus { border-color: #1b4e6e; box-shadow: 0 0 0 3px #1b4e6e20; }
+        .input-field input::placeholder { color: #94a3b8; }
+        .arrow-icon { font-size: 1.8rem; color: #6b8da0; align-self: flex-end; margin-bottom: 8px; }
+        
+        .map-container { height: 400px; width: 100%; border-bottom: 3px solid #c9d8e3; }
+        #map { height: 100%; width: 100%; background: #c8e0ec; }
+        
+        .action-panel {
+            background: #edf2f7; padding: 22px 32px; display: flex; align-items: center; flex-wrap: wrap; gap: 24px;
+        }
+        
+        button {
+            background: #1b4e6e; border: none; color: white; font-weight: 600; font-size: 1.2rem; padding: 14px 38px;
+            border-radius: 50px; display: inline-flex; align-items: center; gap: 12px; letter-spacing: 0.3px;
+            box-shadow: 0 10px 15px -3px #1b4e6e70; cursor: pointer; transition: 0.2s; border: 1px solid #ffffff30;
+        }
+        button:hover { background: #0f3b55; transform: scale(1.02); box-shadow: 0 20px 25px -5px #0f3b5580; }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .aqi-info {
+            background: white; border-radius: 40px; padding: 8px 22px; display: flex; gap: 32px;
+            box-shadow: 0 4px 8px #0000000c; margin-left: auto;
+        }
+        .aqi-info div { display: flex; flex-direction: column; align-items: center; }
+        .aqi-info .aqi-value { font-weight: 800; font-size: 1.3rem; line-height: 1.2; }
+        .aqi-green .aqi-value { color: #2e7d32; }
+        .aqi-yellow .aqi-value { color: #b38f00; }
+        .aqi-red .aqi-value { color: #b53b2b; }
+        .aqi-label { font-size: 0.8rem; color: #3a5e72; }
+        
+        .footnote { 
+            background: #f8fafc; padding: 12px 32px; color: #3f5f74; font-size: 0.9rem; 
+            border-top: 1px solid #bdd3e2; display: flex; justify-content: space-between; align-items: center;
+        }
+        .delhi-badge {
+            background: #1b4e6e; color: white; padding: 4px 16px; border-radius: 40px; font-size: 0.85rem;
+        }
+        .error-message {
+            color: #c0392b; background: #fdeaea; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem;
+            display: none; align-items: center; gap: 8px;
+        }
+        .error-message.show { display: flex; }
+        .success-message {
+            color: #2e7d32; background: #e8f5e9; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem;
+            display: none; align-items: center; gap: 8px;
+        }
+        .success-message.show { display: flex; }
+        
+        .route-details {
+            background: white; border-radius: 16px; padding: 16px 24px; margin: 16px 32px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: none;
+        }
+        .route-details.show { display: block; }
+        .route-item {
+            padding: 12px 0; border-bottom: 1px solid #e2e8f0;
+        }
+        .route-item:last-child { border-bottom: none; }
+        .route-name { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
+        .route-meta { display: flex; gap: 24px; color: #4a5568; font-size: 0.95rem; margin-bottom: 8px; }
+        .route-steps { color: #718096; font-size: 0.9rem; line-height: 1.6; padding-left: 20px; }
+        .route-steps li { margin-bottom: 4px; }
+        .aqi-badge { display: inline-block; padding: 2px 12px; border-radius: 30px; color: white; font-weight: 600; font-size: 0.85rem; margin-left: 12px; }
+        .aqi-badge.green { background: #2e7d32; }
+        .aqi-badge.yellow { background: #b38f00; }
+        .aqi-badge.red { background: #c0392b; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="header">
+        <h1>🌿 <span>AQI based SMART NAVIGATION</span> — Find Greenest Path</h1>
+        <p>
+            <span>🚦 3 routes sorted by real-time AQI (simulated based on Delhi areas)</span>
+            <span class="legend">
+                <span class="legend-item"><span class="legend-color green-bg"></span> low AQI (≤ 80) · Clean</span>
+                <span class="legend-item"><span class="legend-color yellow-bg"></span> moderate AQI (81–150) · Moderate</span>
+                <span class="legend-item"><span class="legend-color red-bg"></span> high AQI (≥ 151) · Polluted</span>
+            </span>
+        </p>
+    </div>
+    
+    <!-- Input bar moved to top of map, just below heading -->
+    <div class="input-bar">
+        <div class="input-group">
+            <div class="input-field">
+                <label>🚩 FROM (Delhi location)</label>
+                <input type="text" id="fromInput" placeholder="e.g., India Gate, Connaught Place, etc." value="Patel Road" list="delhi-places">
+            </div>
+            <span class="arrow-icon">→</span>
+            <div class="input-field">
+                <label>🏁 TO (Delhi location)</label>
+                <input type="text" id="toInput" placeholder="e.g., Red Fort, Qutub Minar, etc." value="Lala Lajpat Rai Marg" list="delhi-places">
+            </div>
+        </div>
+        <datalist id="delhi-places">
+            <option value="Patel Road">
+            <option value="Shankar Road">
+            <option value="Bhishma Pitamah Marg">
+            <option value="Lala Lajpat Rai Marg">
+            <option value="Ring Road">
+            <option value="Professor Ram Nath Vij Marg">
+            <option value="Punjabi Bagh">
+            <option value="Karampura">
+            <option value="Shiv Das Puri Marg">
+            <option value="Dr K S Krishnan Road">
+            <option value="India Gate">
+            <option value="Red Fort">
+            <option value="Qutub Minar">
+            <option value="Connaught Place">
+        </datalist>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+    
+    <div class="action-panel">
+        <button id="findRoutesBtn">🗺️ Find 3 AQI Routes</button>
+        <div class="aqi-info" id="aqiLegend">
+            <div class="aqi-green">
+                <span class="aqi-value" id="greenAQI">-</span>
+                <span class="aqi-label">GREEN · clean</span>
+            </div>
+            <div class="aqi-yellow">
+                <span class="aqi-value" id="yellowAQI">-</span>
+                <span class="aqi-label">YELLOW · moderate</span>
+            </div>
+            <div class="aqi-red">
+                <span class="aqi-value" id="redAQI">-</span>
+                <span class="aqi-label">RED · polluted</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="route-details" id="routeDetails">
+        <!-- Route details will be dynamically inserted here -->
+    </div>
+    
+    <div class="footnote">
+        <div class="status-messages">
+            <span class="error-message" id="errorMsg">❌ Please enter valid Delhi locations</span>
+            <span class="success-message" id="successMsg">✅ Routes found! Colors indicate AQI levels</span>
+        </div>
+        <span class="delhi-badge">📍 Delhi NCR only</span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // Predefined coordinates for popular Delhi locations
+        const delhiLocations = {
+            'patel road': { lat: 28.6629, lng: 77.1395, aqi: 72 },
+            'shankar road': { lat: 28.6429, lng: 77.1795, aqi: 68 },
+            'bhishma pitamah marg': { lat: 28.6729, lng: 77.1595, aqi: 75 },
+            'lala lajpat rai marg': { lat: 28.6529, lng: 77.2195, aqi: 82 },
+            'ring road': { lat: 28.6329, lng: 77.1695, aqi: 78 },
+            'professor ram nath vij marg': { lat: 28.6429, lng: 77.1495, aqi: 71 },
+            'punjabi bagh': { lat: 28.6729, lng: 77.1395, aqi: 108 },
+            'karampura': { lat: 28.6629, lng: 77.1495, aqi: 85 },
+            'shiv das puri marg': { lat: 28.6529, lng: 77.1595, aqi: 73 },
+            'dr k s krishnan road': { lat: 28.6329, lng: 77.1295, aqi: 69 },
+            'india gate': { lat: 28.6129, lng: 77.2295, aqi: 65 },
+            'red fort': { lat: 28.6562, lng: 77.2410, aqi: 82 },
+            'qutub minar': { lat: 28.5245, lng: 77.1855, aqi: 71 },
+            'connaught place': { lat: 28.6329, lng: 77.2195, aqi: 78 }
+        };
+
+        // Initialize map with Delhi view
+        const map = L.map('map').setView([28.6329, 77.1695], 12);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>`,
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Markers
+        let startMarker = null;
+        let endMarker = null;
+        let startCoords = null;
+        let endCoords = null;
+
+        // Store routing controls and AQI markers
+        let routingControls = [];
+        let aqiMarkers = [];
+
+        // Function to find coordinates from location name
+        function findLocation(name) {
+            const lowerName = name.toLowerCase().trim();
+            
+            // Direct match
+            for (let [key, value] of Object.entries(delhiLocations)) {
+                if (lowerName.includes(key) || key.includes(lowerName)) {
+                    return { ...value, name: key };
+                }
+            }
+            
+            // Try to find partial match
+            for (let [key, value] of Object.entries(delhiLocations)) {
+                const words = key.split(' ');
+                for (let word of words) {
+                    if (word.length > 3 && lowerName.includes(word)) {
+                        return { ...value, name: key };
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        // Function to calculate route AQI based on areas passed through
+        function calculateRouteAQI(startAQI, endAQI, routeType) {
+            switch(routeType) {
+                case 'green':
+                    return Math.max(40, Math.min(80, Math.round((startAQI + endAQI) / 2 - 12)));
+                case 'yellow':
+                    return Math.max(81, Math.min(150, Math.round((startAQI + endAQI) / 2 + 8)));
+                case 'red':
+                    return Math.max(151, Math.round((startAQI + endAQI) / 2 + 35));
+                default:
+                    return Math.round((startAQI + endAQI) / 2);
+            }
+        }
+
+        // Function to clear ALL existing routes, markers, and AQI data
+        function clearAllExisting() {
+            // Remove all routing controls
+            routingControls.forEach(ctrl => {
+                if (ctrl && ctrl.remove) {
+                    try { ctrl.remove(); } catch (e) { }
+                }
+            });
+            routingControls = [];
+
+            // Remove all AQI markers
+            aqiMarkers.forEach(marker => {
+                if (marker && marker.remove) {
+                    try { marker.remove(); } catch (e) { }
+                }
+            });
+            aqiMarkers = [];
+
+            // Remove start and end markers
+            if (startMarker) {
+                map.removeLayer(startMarker);
+                startMarker = null;
+            }
+            if (endMarker) {
+                map.removeLayer(endMarker);
+                endMarker = null;
+            }
+
+            // Reset AQI display to dashes
+            document.getElementById('greenAQI').innerText = '-';
+            document.getElementById('yellowAQI').innerText = '-';
+            document.getElementById('redAQI').innerText = '-';
+
+            // Hide route details
+            document.getElementById('routeDetails').classList.remove('show');
+            document.getElementById('routeDetails').innerHTML = '';
+        }
+
+        // Function to create a route with specific style
+        function createRoute(waypoints, style, aqiValue, routeType, startName, endName) {
+            const router = L.Routing.control({
+                waypoints: waypoints,
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                }),
+                lineOptions: {
+                    styles: [style],
+                    extendToWaypoints: true,
+                    missingRouteStyles: [style]
+                },
+                routeWhileDragging: false,
+                addWaypoints: false,
+                draggableWaypoints: false,
+                showAlternatives: false,
+                fitSelectedRoutes: false,
+                plan: L.Routing.plan(waypoints, { 
+                    createMarker: function() { return false; },
+                    draggableWaypoints: false
+                })
+            }).addTo(map);
+
+            // Add AQI label when route is found
+            router.on('routesfound', function(e) {
+                const routes = e.routes;
+                if (routes && routes.length > 0) {
+                    if (routes[0].coordinates && routes[0].coordinates.length > 0) {
+                        const midPoint = routes[0].coordinates[Math.floor(routes[0].coordinates.length / 2)];
+                        const marker = L.marker(midPoint, {
+                            icon: L.divIcon({
+                                className: 'aqi-label-marker',
+                                html: `<div style="background: white; padding: 4px 12px; border-radius: 30px; border: 3px solid ${style.color}; font-weight: bold; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">AQI: ${aqiValue}</div>`,
+                                iconSize: [80, 32]
+                            })
+                        }).addTo(map);
+                        aqiMarkers.push(marker);
+                    }
+                }
+            });
+
+            return router;
+        }
+
+        // Function to get route description based on locations
+        function getRouteDescriptions(startName, endName, aqiValues) {
+            const routes = [
+                {
+                    type: 'green',
+                    name: `${startName} → ${endName} (via Green Corridor)`,
+                    roads: "Patel Road, Professor Ram Nath Vij Marg, Bhimsha Pitamah Marg, Lala Lajpat Rai Marg",
+                    distance: "24.2 km",
+                    time: "32 min",
+                    aqi: aqiValues.green,
+                    steps: [
+                        "Head north on Ring Road (70 m)",
+                        "Enter Punjabi Bagh Chowk and take the 4th exit onto Ring Road (200 m)",
+                        "Exit the traffic circle onto Ring Road (600 m)",
+                        "Turn left onto Shiv Das Puri Marg (1 km)",
+                        "Keep right onto Karampura Flyover (600 m)",
+                        "Go straight onto Patel Road (3 km)",
+                        "Enter Choudhary Brahm Prakash Chowk and take the 3rd exit onto Dr K S Krishnan Road (90 m)"
+                    ]
+                },
+                {
+                    type: 'yellow',
+                    name: `${startName} → ${endName} (via Moderate Route)`,
+                    roads: "Patel Road, Shankar Road, Bhishma Pitamah Marg, Lala Lajpat Rai Marg",
+                    distance: "23.4 km",
+                    time: "31 min",
+                    aqi: aqiValues.yellow,
+                    steps: [
+                        "Head north on Ring Road (70 m)",
+                        "Enter Punjabi Bagh Chowk and take the 4th exit onto Ring Road (200 m)",
+                        "Exit the traffic circle onto Ring Road (600 m)",
+                        "Turn right onto Shankar Road (1.2 km)",
+                        "Continue onto Bhishma Pitamah Marg (2.1 km)",
+                        "Turn left onto Lala Lajpat Rai Marg (1.5 km)"
+                    ]
+                },
+                {
+                    type: 'red',
+                    name: `${startName} → ${endName} (via Congested Route)`,
+                    roads: "Ring Road, Karampura, Punjabi Bagh Flyover",
+                    distance: "25.1 km",
+                    time: "38 min",
+                    aqi: aqiValues.red,
+                    steps: [
+                        "Head north on Ring Road (70 m)",
+                        "Continue straight on Ring Road (2.3 km)",
+                        "Take Karampura Flyover (800 m)",
+                        "Enter Punjabi Bagh Chowk (500 m)",
+                        "Continue via main Ring Road (3.5 km)",
+                        "Turn right at Lala Lajpat Rai Marg (1.2 km)"
+                    ]
+                }
+            ];
+            
+            return routes;
+        }
+
+        // Function to display route details
+        function displayRouteDetails(routes) {
+            const container = document.getElementById('routeDetails');
+            container.innerHTML = '';
+            
+            routes.forEach(route => {
+                const routeEl = document.createElement('div');
+                routeEl.className = 'route-item';
+                
+                const aqiClass = route.type === 'green' ? 'green' : route.type === 'yellow' ? 'yellow' : 'red';
+                
+                routeEl.innerHTML = `
+                    <div class="route-name">
+                        ${route.roads}
+                        <span class="aqi-badge ${aqiClass}">AQI: ${route.aqi}</span>
+                    </div>
+                    <div class="route-meta">
+                        <span>📍 ${route.distance}</span>
+                        <span>⏱️ ${route.time}</span>
+                    </div>
+                    <ul class="route-steps">
+                        ${route.steps.map(step => `<li>${step}</li>`).join('')}
+                    </ul>
+                `;
+                
+                container.appendChild(routeEl);
+            });
+            
+            container.classList.add('show');
+        }
+
+        // Main function to find routes
+        function findRoutes() {
+            const fromInput = document.getElementById('fromInput').value.trim();
+            const toInput = document.getElementById('toInput').value.trim();
+            
+            if (!fromInput || !toInput) {
+                showError('Please enter both locations');
+                return;
+            }
+
+            // Find locations
+            const start = findLocation(fromInput);
+            const end = findLocation(toInput);
+
+            if (!start) {
+                showError(`Location not found: ${fromInput}. Try a different name.`);
+                return;
+            }
+            if (!end) {
+                showError(`Location not found: ${toInput}. Try a different name.`);
+                return;
+            }
+
+            startCoords = [start.lat, start.lng];
+            endCoords = [end.lat, end.lng];
+
+            // Clear ALL existing routes, markers, and AQI data before adding new ones
+            clearAllExisting();
+
+            // Add new markers
+            startMarker = L.marker(startCoords, { 
+                title: start.name,
+                icon: L.divIcon({
+                    className: 'start-marker',
+                    html: '🚩',
+                    iconSize: [24, 24]
+                })
+            }).addTo(map).bindPopup(`🚩 ${start.name} (AQI: ${start.aqi})`);
+            
+            endMarker = L.marker(endCoords, { 
+                title: end.name,
+                icon: L.divIcon({
+                    className: 'end-marker',
+                    html: '🏁',
+                    iconSize: [24, 24]
+                })
+            }).addTo(map).bindPopup(`🏁 ${end.name} (AQI: ${end.aqi})`);
+
+            // Calculate AQI for three routes
+            const aqiValues = {
+                green: calculateRouteAQI(start.aqi, end.aqi, 'green'),
+                yellow: calculateRouteAQI(start.aqi, end.aqi, 'yellow'),
+                red: calculateRouteAQI(start.aqi, end.aqi, 'red')
+            };
+
+            // Route styles
+            const styles = {
+                green: { color: '#2e7d32', weight: 8, opacity: 0.9 },
+                yellow: { color: '#f1c40f', weight: 8, opacity: 0.9 },
+                red: { color: '#c0392b', weight: 8, opacity: 0.9 }
+            };
+
+            // Calculate intermediate points based on direction
+            const midLat = (startCoords[0] + endCoords[0]) / 2;
+            const midLng = (startCoords[1] + endCoords[1]) / 2;
+
+            // Create three routes with different paths
+            setTimeout(() => {
+                const greenRoute = createRoute(
+                    [L.latLng(startCoords), L.latLng(midLat + 0.02, midLng - 0.02), L.latLng(endCoords)],
+                    styles.green,
+                    aqiValues.green,
+                    'green',
+                    start.name,
+                    end.name
+                );
+                routingControls.push(greenRoute);
+            }, 100);
+
+            setTimeout(() => {
+                const yellowRoute = createRoute(
+                    [L.latLng(startCoords), L.latLng(midLat, midLng), L.latLng(endCoords)],
+                    styles.yellow,
+                    aqiValues.yellow,
+                    'yellow',
+                    start.name,
+                    end.name
+                );
+                routingControls.push(yellowRoute);
+            }, 200);
+
+            setTimeout(() => {
+                const redRoute = createRoute(
+                    [L.latLng(startCoords), L.latLng(midLat - 0.02, midLng + 0.02), L.latLng(endCoords)],
+                    styles.red,
+                    aqiValues.red,
+                    'red',
+                    start.name,
+                    end.name
+                );
+                routingControls.push(redRoute);
+            }, 300);
+
+            // Update AQI display with new values
+            document.getElementById('greenAQI').innerText = aqiValues.green;
+            document.getElementById('yellowAQI').innerText = aqiValues.yellow;
+            document.getElementById('redAQI').innerText = aqiValues.red;
+
+            // Get and display route descriptions with new AQI values
+            const routes = getRouteDescriptions(start.name, end.name, aqiValues);
+            displayRouteDetails(routes);
+
+            // Show success message
+            showSuccess(`Routes found from ${start.name} to ${end.name}`);
+
+            // Fit map to bounds
+            setTimeout(() => {
+                const bounds = L.latLngBounds([startCoords, endCoords]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }, 1000);
+        }
+
+        // Helper functions for messages
+        function showError(message) {
+            const errorEl = document.getElementById('errorMsg');
+            const successEl = document.getElementById('successMsg');
+            errorEl.textContent = '❌ ' + message;
+            errorEl.classList.add('show');
+            successEl.classList.remove('show');
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMsg');
+            const errorEl = document.getElementById('errorMsg');
+            successEl.textContent = '✅ ' + message;
+            successEl.classList.add('show');
+            errorEl.classList.remove('show');
+        }
+
+        // Event listeners
+        document.getElementById('findRoutesBtn').addEventListener('click', findRoutes);
+
+        // Allow Enter key in inputs
+        document.getElementById('fromInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findRoutes();
+        });
+        document.getElementById('toInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findRoutes();
+        });
+
+        // Load default routes on page load
+        window.addEventListener('load', function() {
+            setTimeout(findRoutes, 500);
+        });
+
+    })();
+</script>
+</body>
+</html>
