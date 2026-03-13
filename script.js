@@ -5,6 +5,7 @@
 
 
 // Initialize Map centered on Delhi
+// Initialize Map centered on Delhi
 const map = L.map('map').setView([28.6139, 77.2090], 11);
 
 // Dark Mode Tiles
@@ -16,19 +17,20 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
   maxZoom: 20
 }).addTo(map);
 
-// Color Logic
+// AQI Color Logic
 function getAQIColor(value) {
-    if (value <= 50) return '#1abc9c';     // Good
-    if (value <= 100) return '#a3d900';    // Satisfactory
-    if (value <= 200) return '#f5c242';    // Moderate
-    if (value <= 300) return '#f07c41';    // Poor
-    if (value <= 400) return '#e74c3c';    // Very Poor
-    return '#8b0000';                      // Severe
+    if (value <= 50) return '#1abc9c';
+    if (value <= 100) return '#a3d900';
+    if (value <= 200) return '#f5c242';
+    if (value <= 300) return '#f07c41';
+    if (value <= 400) return '#e74c3c';
+    return '#8b0000';
 }
 
+// Global AQI storage
+let aqiData = [];
 
-
-// Global Variables
+// Health Advice
 let healthAdvice = {
     good: [{ icon: "🏃", text: "Enjoy outdoor activities." }, { icon: "🏠", text: "Open windows for fresh air." }],
     satisfactory: [{ icon: "🚴", text: "Good for outdoor exercise." }, { icon: "👶", text: "Sensitive groups monitor symptoms." }],
@@ -51,7 +53,7 @@ function showHealthPanel(aqi, category) {
     if (aqi > 300) key = 'very_poor';
     if (aqi > 400) key = 'severe';
 
-    title.innerText = `Health Advice: ${category || 'Normal'} (${Math.round(aqi)})`;
+    title.innerText = `Health Advice (${Math.round(aqi)})`;
     title.style.color = getAQIColor(aqi);
 
     grid.innerHTML = healthAdvice[key].map(item => `
@@ -64,75 +66,44 @@ function showHealthPanel(aqi, category) {
     panel.classList.add('active');
 }
 
-// Close Panel Listener
 const closeBtn = document.getElementById('close-health');
 if (closeBtn) closeBtn.onclick = () => document.getElementById('health-panel').classList.remove('active');
 
 
-// --- MAIN LOGIC ---
+// LOAD AQI STATIONS
 async function loadAQIData() {
+
     try {
+
         const token = "961fdc6dbaf5fc40b8e2024a40e4cea4963e156a";
 
-        const res = await fetch(
-`https://api.waqi.info/map/bounds/?token=${token}&latlng=27.5,76.0,29.5,78.5`
-);
-
+        const res = await fetch(`https://api.waqi.info/map/bounds/?token=${token}&latlng=27.5,76.0,29.5,78.5`);
         const result = await res.json();
 
-        if (result.status !== "ok") {
-            console.warn("API Error");
-            return;
-        }
+        if (result.status !== "ok") return;
 
         const stations = result.data;
         aqiData = stations;
 
-        
+        stations.forEach(station => {
 
-        // Loop through all AQI stations returned by the API
-stations.forEach(station => {
+            if (!station.aqi || station.aqi === "-") return;
 
-    if (!station.aqi || station.aqi === "-") return;
+            const aqi = station.aqi;
+            const color = getAQIColor(aqi);
+            const cityName = station.station.name;
 
-    const aqi = station.aqi;
-    const color = getAQIColor(aqi);
-    const cityName = station.station.name;
+            const marker = L.circleMarker([station.lat, station.lon], {
+                radius: 7,
+                fillColor: color,
+                color: "#ffffff",
+                weight: 2,
+                fillOpacity: 1
+            }).addTo(map);
 
-    
+            marker.bindPopup(`<b>${cityName}</b><br>AQI: <b>${aqi}</b>`);
 
-    // AQI Dot Marker
-    const marker = L.circleMarker([station.lat, station.lon], {
-    radius: 7,
-    fillColor: color,
-    color: "#ffffff",
-    weight: 2,
-    fillOpacity: 1
-}).addTo(map);
-
-const popup = L.popup({
-    offset: [0, -10]   // negative moves popup downward
-}).setContent(`
-<b>${cityName}</b><br>
-AQI: <b>${aqi}</b>
-`);
-
-marker.bindPopup(popup);
-
-
-    // Popup
-    marker.bindPopup(`
-<b>${cityName}</b><br>
-AQI: <b>${aqi}</b>
-`, {
-    direction: "bottom",
-    offset: [0, 10]
-});
-
-});
-
-        
-        
+        });
 
         document.getElementById("last-updated").innerText =
             "Live Multi-Station AQI (Delhi)";
@@ -143,90 +114,136 @@ AQI: <b>${aqi}</b>
     }
 }
 
+
+// GET AQI DETAILS + FORECAST
+async function getAQIDetails(lat, lon, name) {
+
+    try {
+
+        const token = "961fdc6dbaf5fc40b8e2024a40e4cea4963e156a";
+
+        const res = await fetch(`https://api.waqi.info/feed/geo:${lat};${lon}/?token=${token}`);
+        const result = await res.json();
+
+        if (result.status !== "ok") return;
+
+        const aqi = result.data.aqi;
+        const dominant = result.data.dominentpol || "Unknown";
+
+        const forecast = result.data.forecast?.daily?.pm25 || [];
+
+        const f24 = forecast[1]?.avg || "-";
+        const f48 = forecast[2]?.avg || "-";
+        const f72 = forecast[3]?.avg || "-";
+
+        L.popup()
+        .setLatLng([lat, lon])
+        .setContent(`
+        <b>${name}</b><br>
+        AQI: <b>${aqi}</b><br>
+        Dominant: ${dominant.toUpperCase()}<br><br>
+        <b>Forecast</b><br>
+        +24h : ${f24}<br>
+        +48h : ${f48}<br>
+        +72h : ${f72}
+        `)
+        .openOn(map);
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
 loadAQIData();
 
 
-// --- INTERACTION LOGIC ---
-
-// 1. Locate Me
+// LOCATE USER
 document.getElementById('locate-btn').addEventListener('click', () => {
+
     if (!navigator.geolocation) return alert("Geolocation not supported");
-    const btn = document.getElementById('locate-btn');
-    btn.innerHTML = '⏳';
 
     navigator.geolocation.getCurrentPosition(pos => {
+
         const { latitude, longitude } = pos.coords;
         map.flyTo([latitude, longitude], 14);
+
     });
+
 });
 
-// 2. Search Logic
+
+// SEARCH LOCATION
 async function searchLocation() {
+
     const query = document.getElementById('search-box').value;
     if (!query) return;
+
     const btn = document.getElementById('search-btn');
     btn.innerHTML = '⏳';
 
     try {
+
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Delhi India')}`);
         const data = await res.json();
+
         if (data && data.length > 0) {
+
             const { lat, lon } = data[0];
             const name = data[0].display_name.split(',')[0];
+
             map.flyTo([lat, lon], 13);
-            L.popup().setLatLng([lat, lon]).setContent(`<b>📍 ${name}</b><br>Finding nearest station...`).openOn(map);
-            findNearestStation(lat, lon);
+
+            getAQIDetails(lat, lon, name);
+
         } else {
+
             alert("Location not found.");
+
         }
+
     } catch (e) {
+
         console.error(e);
         alert("Search failed.");
+
     } finally {
+
         btn.innerHTML = '🔍';
+
     }
 }
 
 document.getElementById('search-btn').addEventListener('click', searchLocation);
-document.getElementById('search-box').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchLocation(); });
 
-// 3. Find Nearest Logic
-function findNearestStation(lat, lon) {
-    if (!aqiData || !aqiData.forecasts) return;
-    let minDist = Infinity, nearest = null;
-
-    aqiData.forecasts.forEach(st => {
-        if (!st.lat || !st.lon) return;
-        const d = Math.sqrt(Math.pow(st.lat - lat, 2) + Math.pow(st.lon - lon, 2));
-        if (d < minDist) { minDist = d; nearest = st; }
-    });
-
-    if (nearest) {
-        const line = L.polyline([[lat, lon], [nearest.lat, nearest.lon]], { color: '#0984e3', dashArray: '5, 10', weight: 2, opacity: 0.7 }).addTo(map);
-        setTimeout(() => map.removeLayer(line), 5000);
-
-        map.eachLayer(l => {
-            if (l instanceof L.Marker && l.getLatLng().lat === nearest.lat && l.getLatLng().lng === nearest.lon) {
-                l.openPopup();
-                const pm25 = nearest.current_safety_data?.current_pm25 || nearest.forecasts[0]?.pm25_final || 0;
-                showHealthPanel(pm25, nearest.category);
-            }
-        });
-    }
-}
-
-// 4. Map Click
-map.on('click', (e) => {
-    const { lat, lng } = e.latlng;
-    L.circleMarker([lat, lng], { radius: 5, color: '#333', fillColor: '#fff', fillOpacity: 1 }).addTo(map).bindPopup("Selected Location").openPopup();
-    findNearestStation(lat, lng);
+document.getElementById('search-box').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchLocation();
 });
 
-// 5. Hide Loader (Only runs after everything is setup)
+
+// MAP CLICK
+map.on('click', (e) => {
+
+    const { lat, lng } = e.latlng;
+
+    L.circleMarker([lat, lng], {
+        radius: 5,
+        color: '#333',
+        fillColor: '#fff',
+        fillOpacity: 1
+    })
+    .addTo(map)
+    .bindPopup("Selected Location")
+    .openPopup();
+
+    getAQIDetails(lat, lng, "Selected Location");
+
+});
+
+
+// REMOVE LOADER
 const loader = document.getElementById('loader');
+
 if (loader) {
-    setTimeout(() => {
-        loader.style.opacity = '0';
-        setTimeout(() => loader.remove(), 500);
-    }, 800);
+    loader.style.display = "none";
 }
+
