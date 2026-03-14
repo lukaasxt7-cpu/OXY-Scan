@@ -17,9 +17,386 @@
     <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 60px;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+            z-index: 10000;
+        }
+
+        .menu-btn div {
+            height: 4px;
+            width: 100%;
+            background-color: rgb(164, 173, 173);
+            border-radius: 5px;
+        }
+
+        #option {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 240px;
+            height: 100vh;
+            background: linear-gradient(180deg, #2f3e46, #354f52);
+            color: white;
+            padding: 25px 20px;
+            border-radius: 0 15px 15px 0;
+            box-shadow: 5px 0px 20px rgba(0, 0, 0, 0.3);
+            animation: slideMenu 0.3s ease;
+            z-index: 10000;
+        }
+
+        #option button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #52796f;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #option button:hover {
+            background: #84a98c;
+        }
+
+        /* Updated Review Page Styles */
+        #reviewpage {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 350px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 20000;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .review-header h3 {
+            margin: 0;
+            color: #2f3e46;
+        }
+
+        .close-review {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            margin: 0;
+        }
+
+        .close-review:hover {
+            color: #333;
+        }
+
+        #review-location-name {
+            margin: 10px 0;
+            font-weight: 600;
+            color: #52796f;
+            font-size: 1.1rem;
+        }
+
+        .review-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2f3e46;
+            font-weight: 500;
+        }
+
+        #review-rating {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        #review-text {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: vertical;
+            font-family: inherit;
+            margin-bottom: 15px;
+        }
+
+        .review-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .review-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .locate-review-btn {
+            background: #0984e3;
+            color: white;
+        }
+
+        .locate-review-btn:hover {
+            background: #0063b0;
+        }
+
+        .save-review-btn {
+            background: #00b894;
+            color: white;
+        }
+
+        .save-review-btn:hover {
+            background: #00997a;
+        }
+
+        #mont {
+            text-align: center;
+            padding: 40px;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #f1f5f2;
+            z-index: 10000;
+            overflow: auto;
+        }
+
+        #mont h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            width: 200px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        .aqi {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .msg {
+            font-size: 14px;
+        }
+
+        .good {
+            border-top: 6px solid #2ecc71;
+        }
+
+        .warning {
+            border-top: 6px solid #f1c40f;
+        }
+
+        .danger {
+            border-top: 6px solid #e74c3c;
+        }
+
+        #navig {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 320px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        #navig input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        #navig button {
+            padding: 10px 18px;
+            margin: 8px 5px;
+            border: none;
+            border-radius: 8px;
+            background: #2f3e46;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        #navig button:hover {
+            background: #52796f;
+            transform: scale(1.05);
+        }
+
+        #mont button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #2f3e46;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
+    <button class="menu-btn" onclick="show()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </button>
+
+    <div id="option">
+        <button onclick="hid()">✖</button><br>
+        <button id="smartnav" onclick="nav()">Smart Navigation</button><br>
+        <button id="airD" onclick="mon()">AQI Monitoring</button><br>
+        <button id="Rev" onclick="revpg()">Review</button>
+    </div>
+
+    <!-- Updated Review Page Modal -->
+    <div id="reviewpage">
+        <div class="review-header">
+            <h3>Write a Review</h3>
+            <button class="close-review" onclick="closeReviewModal()">&times;</button>
+        </div>
+        
+        <p id="review-location-name">Select a location first</p>
+        
+        <div>
+            <label class="review-label">Rating:</label>
+            <select id="review-rating">
+                <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+                <option value="4">⭐⭐⭐⭐ - Good</option>
+                <option value="3">⭐⭐⭐ - Average</option>
+                <option value="2">⭐⭐ - Poor</option>
+                <option value="1">⭐ - Very Poor</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="review-label">Your Review:</label>
+            <textarea id="review-text" placeholder="Write your experience here..." rows="4"></textarea>
+        </div>
+        
+        <div class="review-buttons">
+            <button class="locate-review-btn" onclick="getUserLocationForReview()">📍 Use My Location</button>
+            <button class="save-review-btn" onclick="saveReview()">💾 Save Review</button>
+        </div>
+    </div>
+
+    <div id="navig">
+        <button>Locate Me</button>
+        <input type="text" placeholder="From"><br>
+        <p>To</p>
+        <input type="text" placeholder="Enter Destination">
+        <button>Search</button>
+    </div>
+
+    <div id="mont">
+        <button onclick="backToMap()">⬅ Back to Map</button>
+        <h1>AQI Monitoring</h1>
+        <div class="container">
+            <div class="card">
+                <h3>Reliance Jamnagar Refinery</h3>
+                <p id="aqi">AQI: 78</p>
+                <p>Reliance Industries Limited Jamnagar – 361140 Gujarat, India</p>
+                <p id="msg">Safe emission level</p>
+            </div>
+
+            <div class="card">
+                <h3>Visakhapatnam Steel Plant</h3>
+                <p id="aqi">AQI: 145</p>
+                <p>Visakhapatnam Steel Plant– 530031 Andhra Pradesh, India</p>
+                <p id="msg">🚨 Pollution above Allotted limit</p>
+            </div>
+
+            <div class="card">
+                <h3>ITC Paperboards Factory</h3>
+                <p id="aqi">AQI: 87</p>
+                <p>Bhadrachalam Khammam District – 507111 Telangana, India</p>
+                <p id="msg">⚠️ Approaching emission limit</p>
+            </div>
+
+            <div class="card">
+                <h3>TATA</h3>
+                <p id="aqi">AQI: 67</p>
+                <p>Tata Steel Plant Area Jamshedpur – 831001 Jharkhand</p>
+                <p id="msg">🚨 Pollution above Allotted limit</p>
+            </div>
+        </div>
+    </div>
 
     <div id="app-container">
         <!-- Floating Header -->
@@ -42,7 +419,6 @@
         <button id="locate-btn" class="glass-panel" title="Locate Me">
             📍
         </button>
-        
 
         <!-- Legend -->
         <div class="glass-panel legend">
@@ -80,15 +456,82 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
 
-    
-    
+    <!-- Your main script.js file -->
     <script src="script.js"></script>
 
-    <!-- App Logic -->
-    
+    <!-- Menu Functions -->
+    <script>
+        function show() {
+            document.getElementById('option').style.display = 'block';
+        }
 
+        function hid() {
+            document.getElementById('option').style.display = 'none';
+            document.getElementById('reviewpage').style.display = 'none';
+            document.getElementById('navig').style.display = 'none';
+        }
+
+        function revpg() {
+            document.getElementById('reviewpage').style.display = 'block';
+            document.getElementById('option').style.display = 'none';
+            document.getElementById('mont').style.display = 'none';
+            document.getElementById('navig').style.display = 'none';
+        }
+
+        function mon() {
+            document.getElementById('mont').style.display = 'block';
+            document.getElementById('option').style.display = 'none';
+            document.getElementById('reviewpage').style.display = 'none';
+            document.getElementById('navig').style.display = 'none';
+        }
+
+        function nav(){
+    // Check if we're using Live Server or direct file access
+    if (window.location.href.includes('5500') || window.location.href.includes('127.0.0.1')) {
+        // Live Server - go to relative path
+        window.location.href = "./smartnavigation.html";
+    } else {
+        // Direct file access - go to same folder
+        window.location.href = "smartnavigation.html";
+    }
+}
+
+        function backToMap() {
+            document.getElementById('mont').style.display = 'none';
+        }
+
+        // Make review functions globally available
+        function closeReviewModal() {
+            document.getElementById('reviewpage').style.display = 'none';
+        }
+
+        function getUserLocationForReview() {
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported");
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(pos => {
+                const { latitude, longitude } = pos.coords;
+                // This will be handled by the main script.js
+                if (typeof window.openReviewModal === 'function') {
+                    window.openReviewModal(latitude, longitude, "Your Location");
+                } else {
+                    alert("Please wait for the map to load fully");
+                }
+            });
+        }
+
+        function saveReview() {
+            // This will be handled by the main script.js
+            if (typeof window.saveReview === 'function') {
+                window.saveReview();
+            } else {
+                alert("Please wait for the map to load fully");
+            }
+        }
+    </script>
 </body>
 
 </html>
